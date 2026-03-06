@@ -26,6 +26,7 @@ export async function searchRoutes(from, to, options = {}) {
   if (options.toLat) params.set('toLat', options.toLat);
   if (options.toLon) params.set('toLon', options.toLon);
   if (options.multiModal) params.set('multiModal', 'true');
+  if (options.sortBy) params.set('sortBy', options.sortBy);
   return fetchJson(`${API_BASE}/transit/search?${params}`);
 }
 

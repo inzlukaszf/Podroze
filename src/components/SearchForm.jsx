@@ -1,11 +1,19 @@
 import { useState } from 'react';
 import LocationSearch from './LocationSearch';
-import { FaSearch, FaExchangeAlt, FaMapMarkerAlt, FaClock } from 'react-icons/fa';
+import { FaSearch, FaExchangeAlt, FaMapMarkerAlt, FaClock, FaBolt, FaMoneyBillWave, FaRoute } from 'react-icons/fa';
+
+const SORT_OPTIONS = [
+  { value: 'departure', label: 'Czas odjazdu', icon: <FaClock /> },
+  { value: 'fastest', label: 'Najszybsza', icon: <FaBolt /> },
+  { value: 'cheapest', label: 'Najtańsza', icon: <FaMoneyBillWave /> },
+  { value: 'fewest_transfers', label: 'Najmniej przesiadek', icon: <FaRoute /> },
+];
 
 export default function SearchForm({ from, to, onFromChange, onToChange, onSearch, onSelectOnMap, loading }) {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
   const [multiModal, setMultiModal] = useState(true);
+  const [sortBy, setSortBy] = useState('departure');
 
   function handleSwap() {
     const temp = from;
@@ -16,7 +24,7 @@ export default function SearchForm({ from, to, onFromChange, onToChange, onSearc
   function handleSubmit(e) {
     e.preventDefault();
     if (!from || !to) return;
-    onSearch({ date, time, multiModal });
+    onSearch({ date, time, multiModal, sortBy });
   }
 
   return (
@@ -89,6 +97,22 @@ export default function SearchForm({ from, to, onFromChange, onToChange, onSearc
           </div>
         </div>
 
+        <div className="search-form__sort">
+          <label className="search-form__sort-label">Sortuj wyniki:</label>
+          <div className="search-form__sort-options">
+            {SORT_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                type="button"
+                className={`search-form__sort-btn ${sortBy === opt.value ? 'search-form__sort-btn--active' : ''}`}
+                onClick={() => setSortBy(opt.value)}
+              >
+                {opt.icon} {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <label className="search-form__checkbox">
           <input
             type="checkbox"
@@ -112,13 +136,15 @@ export default function SearchForm({ from, to, onFromChange, onToChange, onSearc
       </button>
 
       <div className="search-form__providers">
-        <p>Źródła danych:</p>
+        <p>Źródła danych i przewoźnicy:</p>
         <div className="search-form__provider-tags">
-          <span>PKP / Koleje</span>
-          <span>FlixBus</span>
-          <span>e-Podróżnik</span>
-          <span>ZTM / MPK</span>
-          <span>jakdojade.pl</span>
+          <span className="search-form__provider-tag--train">PKP / Koleje</span>
+          <span className="search-form__provider-tag--bus">FlixBus</span>
+          <span className="search-form__provider-tag--bus">RegioJet</span>
+          <span className="search-form__provider-tag--bus">Sindbad</span>
+          <span className="search-form__provider-tag--bus">e-Podróżnik</span>
+          <span className="search-form__provider-tag--local">ZTM / MPK</span>
+          <span className="search-form__provider-tag--local">jakdojade.pl</span>
         </div>
       </div>
     </form>

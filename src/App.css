@@ -617,6 +617,356 @@ body {
   font-weight: 500;
 }
 
+/* Sort Options */
+.search-form__sort {
+  margin-bottom: 12px;
+}
+
+.search-form__sort-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gray-600);
+  margin-bottom: 6px;
+}
+
+.search-form__sort-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.search-form__sort-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border: 1px solid var(--gray-200);
+  border-radius: 20px;
+  background: white;
+  font-size: 12px;
+  color: var(--gray-600);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.search-form__sort-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.search-form__sort-btn--active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+/* Provider tags with colors */
+.search-form__provider-tag--train {
+  padding: 2px 8px;
+  background: var(--primary-light);
+  border-radius: 12px;
+  font-size: 11px;
+  color: var(--primary);
+}
+
+.search-form__provider-tag--bus {
+  padding: 2px 8px;
+  background: var(--orange-light);
+  border-radius: 12px;
+  font-size: 11px;
+  color: var(--orange);
+}
+
+.search-form__provider-tag--local {
+  padding: 2px 8px;
+  background: var(--green-light);
+  border-radius: 12px;
+  font-size: 11px;
+  color: var(--green);
+}
+
+/* Route Tags (fastest, cheapest, etc.) */
+.connection-card__tags {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.connection-card__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.tag--fastest {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.tag--cheapest {
+  background: var(--green-light);
+  color: var(--green);
+}
+
+.tag--fewest {
+  background: var(--primary-light);
+  color: var(--primary);
+}
+
+/* Lines summary badge */
+.connection-card__lines-summary {
+  font-size: 12px;
+  color: var(--green);
+  background: var(--green-light);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+/* Private carrier badge */
+.connection-card__carrier--private {
+  color: var(--orange);
+  font-weight: 500;
+}
+
+/* Estimated price indicator */
+.connection-card__estimated {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--gray-400);
+}
+
+/* Ticket name */
+.connection-card__ticket-name {
+  color: var(--gray-500);
+  font-size: 12px;
+}
+
+/* Price range */
+.connection-card__price-range {
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: var(--gray-50);
+  border-radius: var(--radius);
+  font-size: 12px;
+  color: var(--gray-500);
+}
+
+.connection-card__price-range-cheap {
+  color: var(--green);
+  font-weight: 600;
+}
+
+.connection-card__price-range-exp {
+  color: var(--orange);
+  font-weight: 600;
+}
+
+/* Leg Detail (detailed route segments) */
+.leg-detail {
+  display: flex;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--gray-100);
+}
+
+.leg-detail:last-child {
+  border-bottom: none;
+}
+
+.leg-detail--walk {
+  opacity: 0.7;
+}
+
+.leg-detail__icon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gray-100);
+  border-radius: 50%;
+  font-size: 13px;
+  color: var(--gray-600);
+}
+
+.connection-card--local_transit .leg-detail__icon {
+  background: var(--green-light);
+  color: var(--green);
+}
+
+.connection-card--train .leg-detail__icon {
+  background: var(--primary-light);
+  color: var(--primary);
+}
+
+.connection-card--bus .leg-detail__icon {
+  background: var(--orange-light);
+  color: var(--orange);
+}
+
+.leg-detail__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.leg-detail__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+
+.leg-detail__line {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--gray-800);
+  background: var(--gray-100);
+  padding: 1px 8px;
+  border-radius: 4px;
+}
+
+.connection-card--local_transit .leg-detail__line {
+  background: var(--green-light);
+  color: var(--green);
+}
+
+.leg-detail__mode {
+  font-size: 11px;
+  color: var(--gray-400);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.leg-detail__direction {
+  font-size: 11px;
+  color: var(--gray-500);
+  font-style: italic;
+}
+
+.leg-detail__times {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--gray-600);
+  flex-wrap: wrap;
+}
+
+.leg-detail__stop {
+  font-weight: 500;
+  color: var(--gray-700);
+  max-width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.leg-detail__arrow {
+  color: var(--gray-300);
+}
+
+.leg-detail__stops {
+  display: inline-block;
+  font-size: 11px;
+  color: var(--gray-400);
+  margin-right: 8px;
+}
+
+.leg-detail__duration {
+  display: inline-block;
+  font-size: 11px;
+  color: var(--gray-400);
+}
+
+/* Ticket Options */
+.ticket-options {
+  margin-top: 10px;
+  border-top: 1px solid var(--gray-100);
+  padding-top: 8px;
+}
+
+.ticket-options__toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.ticket-options__toggle:hover {
+  color: var(--primary-dark);
+}
+
+.ticket-options__list {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ticket-options__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: var(--gray-50);
+  border-radius: var(--radius);
+  font-size: 13px;
+}
+
+.ticket-options__item--recommended {
+  background: var(--green-light);
+  border: 1px solid var(--green);
+}
+
+.ticket-options__name {
+  color: var(--gray-700);
+}
+
+.ticket-options__price {
+  font-weight: 600;
+  color: var(--gray-800);
+}
+
+.ticket-options__badge {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--green);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Loading sub text */
+.route-results__loading-sub {
+  font-size: 12px;
+  color: var(--gray-400);
+  margin-top: 4px;
+}
+
+/* Multi-modal price */
+.route-results__multimodal-price {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--green);
+  margin-bottom: 12px;
+}
+
 /* Spinner */
 .spinner {
   width: 32px;

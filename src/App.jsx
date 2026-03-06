@@ -31,6 +31,7 @@ export default function App() {
         toLat: to.lat,
         toLon: to.lon,
         multiModal: options.multiModal,
+        sortBy: options.sortBy,
       });
 
       setResults(data);

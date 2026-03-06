@@ -8,7 +8,7 @@ const router = Router();
 // Search for routes between two points
 router.get('/search', async (req, res) => {
   try {
-    const { from, to, date, time, fromLat, fromLon, toLat, toLon, multiModal } = req.query;
+    const { from, to, date, time, fromLat, fromLon, toLat, toLon, multiModal, sortBy } = req.query;
 
     if (!from || !to) {
       return res.status(400).json({ error: 'Parameters "from" and "to" are required' });
@@ -21,6 +21,7 @@ router.get('/search', async (req, res) => {
       fromLon: fromLon ? parseFloat(fromLon) : undefined,
       toLat: toLat ? parseFloat(toLat) : undefined,
       toLon: toLon ? parseFloat(toLon) : undefined,
+      sortBy: sortBy || 'departure',
     };
 
     const results = multiModal === 'true'

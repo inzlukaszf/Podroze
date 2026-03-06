@@ -1,10 +1,10 @@
-import { searchConnections, searchStations } from './pkpService.js';
-import { searchBusConnections } from './busService.js';
+import { searchConnections } from './pkpService.js';
+import { searchBusConnections, estimateBusPrice } from './busService.js';
 import { detectCity, searchJakDojade, getCityTransitInfo } from './ztmService.js';
 
 // Main route planning function - combines multiple transit sources
 export async function findRoutes(from, to, options = {}) {
-  const { date, time, fromLat, fromLon, toLat, toLon } = options;
+  const { date, time, fromLat, fromLon, toLat, toLon, sortBy } = options;
 
   const fromCity = fromLat && fromLon ? detectCity(fromLat, fromLon) : null;
   const toCity = toLat && toLon ? detectCity(toLat, toLon) : null;
@@ -19,7 +19,7 @@ export async function findRoutes(from, to, options = {}) {
       .catch(() => [])
   );
 
-  // 2. Intercity bus connections
+  // 2. Intercity bus connections (FlixBus, RegioJet, Sindbad, e-Podróżnik)
   searches.push(
     searchBusConnections(from, to, date)
       .then(results => results.map(r => ({ ...r, source: 'bus' })))
@@ -29,24 +29,45 @@ export async function findRoutes(from, to, options = {}) {
   // 3. Local transit (if both points are in the same city)
   if (fromCity && toCity && fromCity === toCity && fromLat && toLat) {
     searches.push(
-      searchJakDojade(fromLat, fromLon, toLat, toLon, fromCity)
+      searchJakDojade(fromLat, fromLon, toLat, toLon, fromCity, date, time)
         .then(results => results.map(r => ({ ...r, source: 'local' })))
         .catch(() => [])
     );
   }
 
   const allResults = await Promise.all(searches);
-  const combined = allResults.flat();
+  let combined = allResults.flat();
 
-  // Sort by departure time, then by duration
-  combined.sort((a, b) => {
-    if (a.departure && b.departure) {
-      return new Date(a.departure) - new Date(b.departure);
-    }
-    return 0;
-  });
+  // If bus results lack price, estimate based on distance
+  if (fromLat && toLat) {
+    const distKm = haversineKm(fromLat, fromLon, toLat, toLon);
+    combined = combined.map(c => {
+      if (c.type === 'bus' && !c.price && distKm > 0) {
+        const est = estimateBusPrice(distKm);
+        return {
+          ...c,
+          price: { amount: est.average.amount, currency: 'PLN', estimated: true },
+          priceRange: est,
+        };
+      }
+      return c;
+    });
+  }
 
-  // Add metadata
+  // Normalize duration to minutes for sorting
+  combined = combined.map(c => ({
+    ...c,
+    _durationMin: parseDurationMinutes(c.duration),
+    _priceAmount: c.price?.amount ?? Infinity,
+    _transfers: c.transfers ?? c.legs?.length ?? 0,
+  }));
+
+  // Sort based on preference
+  combined = sortConnections(combined, sortBy || 'departure');
+
+  // Tag fastest, cheapest, shortest
+  const tagged = tagBestRoutes(combined);
+
   return {
     from,
     to,
@@ -54,25 +75,89 @@ export async function findRoutes(from, to, options = {}) {
     fromCity: fromCity ? getCityTransitInfo(fromCity)?.name : null,
     toCity: toCity ? getCityTransitInfo(toCity)?.name : null,
     sameCity: fromCity === toCity && fromCity !== null,
-    totalResults: combined.length,
-    connections: combined,
+    totalResults: tagged.length,
+    sortedBy: sortBy || 'departure',
+    connections: tagged,
   };
+}
+
+// Sort connections by different criteria
+function sortConnections(connections, sortBy) {
+  switch (sortBy) {
+    case 'fastest':
+      return [...connections].sort((a, b) => a._durationMin - b._durationMin);
+    case 'cheapest':
+      return [...connections].sort((a, b) => a._priceAmount - b._priceAmount);
+    case 'fewest_transfers':
+      return [...connections].sort((a, b) => a._transfers - b._transfers);
+    case 'departure':
+    default:
+      return [...connections].sort((a, b) => {
+        if (a.departure && b.departure) {
+          return new Date(a.departure) - new Date(b.departure);
+        }
+        return 0;
+      });
+  }
+}
+
+// Tag the best route for each category
+function tagBestRoutes(connections) {
+  if (connections.length === 0) return connections;
+
+  // Find indexes of best in each category
+  let fastestIdx = 0;
+  let cheapestIdx = 0;
+  let fewestTransfersIdx = 0;
+
+  for (let i = 1; i < connections.length; i++) {
+    if (connections[i]._durationMin < connections[fastestIdx]._durationMin) fastestIdx = i;
+    if (connections[i]._priceAmount < connections[cheapestIdx]._priceAmount) cheapestIdx = i;
+    if (connections[i]._transfers < connections[fewestTransfersIdx]._transfers) fewestTransfersIdx = i;
+  }
+
+  return connections.map((c, i) => {
+    const tags = [];
+    if (i === fastestIdx && c._durationMin < Infinity) tags.push('najszybsza');
+    if (i === cheapestIdx && c._priceAmount < Infinity) tags.push('najtańsza');
+    if (i === fewestTransfersIdx) tags.push('najmniej przesiadek');
+    return { ...c, tags };
+  });
+}
+
+// Parse duration string/number to minutes
+function parseDurationMinutes(duration) {
+  if (!duration) return Infinity;
+  if (typeof duration === 'number') {
+    return duration > 300 ? Math.ceil(duration / 60) : duration; // seconds vs minutes
+  }
+  if (typeof duration === 'string') {
+    // "2h 30min", "2h 30m", "150min", "02:30"
+    const hm = duration.match(/(\d+)\s*h\w*\s*(\d+)/i);
+    if (hm) return parseInt(hm[1]) * 60 + parseInt(hm[2]);
+
+    const hOnly = duration.match(/^(\d+)\s*h/i);
+    if (hOnly) return parseInt(hOnly[1]) * 60;
+
+    const mOnly = duration.match(/^(\d+)\s*m/i);
+    if (mOnly) return parseInt(mOnly[1]);
+
+    const colon = duration.match(/^(\d+):(\d+)/);
+    if (colon) return parseInt(colon[1]) * 60 + parseInt(colon[2]);
+  }
+  return Infinity;
 }
 
 // Find multi-modal routes (combining different transport types)
 export async function findMultiModalRoute(from, to, options = {}) {
-  const { fromLat, fromLon, toLat, toLon, date, time } = options;
+  const { fromLat, fromLon, toLat, toLon } = options;
 
-  // Direct routes
   const directRoutes = await findRoutes(from, to, options);
 
-  // If no direct routes found and cities are far apart,
-  // try to find routes via major transit hubs
   if (directRoutes.connections.length === 0 && fromLat && toLat) {
     const distance = haversineKm(fromLat, fromLon, toLat, toLon);
 
     if (distance > 50) {
-      // Try routing via nearest major city stations
       const hubs = findNearestHubs(fromLat, fromLon, toLat, toLon);
 
       const hubRoutes = [];
@@ -81,16 +166,24 @@ export async function findMultiModalRoute(from, to, options = {}) {
         const fromHub = await findRoutes(hub.name, to, { ...options });
 
         if (toHub.connections.length > 0 && fromHub.connections.length > 0) {
+          const firstLeg = toHub.connections[0];
+          const secondLeg = fromHub.connections[0];
+          const totalPrice = (firstLeg.price?.amount || 0) + (secondLeg.price?.amount || 0);
+
           hubRoutes.push({
             type: 'multi_modal',
             via: hub.name,
-            firstLeg: toHub.connections[0],
-            secondLeg: fromHub.connections[0],
+            firstLeg,
+            secondLeg,
             totalLegs: 2,
+            totalPrice: totalPrice > 0 ? { amount: totalPrice, currency: 'PLN' } : null,
+            totalDuration: (firstLeg._durationMin || 0) + (secondLeg._durationMin || 0),
           });
         }
       }
 
+      // Sort multi-modal by total price
+      hubRoutes.sort((a, b) => (a.totalPrice?.amount || Infinity) - (b.totalPrice?.amount || Infinity));
       directRoutes.multiModal = hubRoutes;
     }
   }
@@ -108,7 +201,6 @@ function haversineKm(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// Major Polish transit hubs for multi-modal routing
 const MAJOR_HUBS = [
   { name: 'Warszawa Centralna', lat: 52.2289, lon: 21.0034 },
   { name: 'Kraków Główny', lat: 50.0680, lon: 19.9478 },
@@ -123,7 +215,6 @@ const MAJOR_HUBS = [
 ];
 
 function findNearestHubs(fromLat, fromLon, toLat, toLon) {
-  // Find hubs that are roughly between the two points
   const midLat = (fromLat + toLat) / 2;
   const midLon = (fromLon + toLon) / 2;
   const totalDist = haversineKm(fromLat, fromLon, toLat, toLon);
