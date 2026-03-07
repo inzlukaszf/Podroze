@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import LocationSearch from './LocationSearch';
-import { FaSearch, FaExchangeAlt, FaMapMarkerAlt, FaClock, FaBolt, FaMoneyBillWave, FaRoute } from 'react-icons/fa';
+import { FaSearch, FaExchangeAlt, FaMapMarkerAlt, FaClock, FaBolt, FaMoneyBillWave, FaRoute, FaHourglass } from 'react-icons/fa';
 
 const SORT_OPTIONS = [
   { value: 'departure', label: 'Czas odjazdu', icon: <FaClock /> },
   { value: 'fastest', label: 'Najszybsza', icon: <FaBolt /> },
   { value: 'cheapest', label: 'Najtańsza', icon: <FaMoneyBillWave /> },
-  { value: 'fewest_transfers', label: 'Najmniej przesiadek', icon: <FaRoute /> },
+  { value: 'fewest_transfers', label: 'Mniej przesiadek', icon: <FaRoute /> },
+  { value: 'min_wait', label: 'Min. oczekiwanie', icon: <FaHourglass /> },
 ];
 
 export default function SearchForm({ from, to, onFromChange, onToChange, onSearch, onSelectOnMap, loading }) {
@@ -38,7 +39,7 @@ export default function SearchForm({ from, to, onFromChange, onToChange, onSearc
             label="Skąd"
             value={from}
             onChange={onFromChange}
-            placeholder="Np. Warszawa, Kraków Główny..."
+            placeholder="Wpisz adres, miasto lub dworzec..."
           />
           <button
             type="button"
@@ -64,7 +65,7 @@ export default function SearchForm({ from, to, onFromChange, onToChange, onSearc
             label="Dokąd"
             value={to}
             onChange={onToChange}
-            placeholder="Np. Gdańsk, Wrocław..."
+            placeholder="Wpisz adres, miasto lub dworzec..."
           />
           <button
             type="button"
@@ -88,7 +89,7 @@ export default function SearchForm({ from, to, onFromChange, onToChange, onSearc
             />
           </div>
           <div className="search-form__field">
-            <label><FaClock /> Godzina</label>
+            <label><FaClock /> Odjazd po</label>
             <input
               type="time"
               value={time}
@@ -119,7 +120,7 @@ export default function SearchForm({ from, to, onFromChange, onToChange, onSearc
             checked={multiModal}
             onChange={e => setMultiModal(e.target.checked)}
           />
-          Szukaj z przesiadkami w dużych miastach
+          Szukaj z przesiadkami (autobus ↔ pociąg ↔ komunikacja miejska)
         </label>
       </div>
 
@@ -129,9 +130,9 @@ export default function SearchForm({ from, to, onFromChange, onToChange, onSearc
         disabled={!from || !to || loading}
       >
         {loading ? (
-          <>Szukam...</>
+          <>Szukam 5 najbliższych połączeń...</>
         ) : (
-          <><FaSearch /> Szukaj połączeń</>
+          <><FaSearch /> Szukaj 5 najbliższych połączeń</>
         )}
       </button>
 

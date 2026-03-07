@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { geocodeSearch } from '../services/api';
 import { useDebounce } from '../hooks/useDebounce';
 
@@ -9,20 +9,41 @@ export default function LocationSearch({ label, value, onChange, placeholder }) 
   const [loading, setLoading] = useState(false);
   const debouncedQuery = useDebounce(query, 400);
   const wrapperRef = useRef(null);
+  const lastSearchRef = useRef('');
 
+  // When debounced query changes, search and auto-select if single result
   useEffect(() => {
     if (!debouncedQuery || debouncedQuery.length < 2) {
       setResults([]);
+      setIsOpen(false);
       return;
     }
+
+    // Don't re-search if already selected this exact query
+    if (value?.name && debouncedQuery === value.name.split(',')[0]) return;
+
     setLoading(true);
+    lastSearchRef.current = debouncedQuery;
+
     geocodeSearch(debouncedQuery)
       .then(data => {
+        // Only update if this is still the latest search
+        if (lastSearchRef.current !== debouncedQuery) return;
         setResults(data);
-        setIsOpen(true);
+
+        if (data.length === 1) {
+          // Auto-select if only one result
+          handleSelect(data[0]);
+        } else if (data.length > 1) {
+          setIsOpen(true);
+        }
       })
-      .catch(() => setResults([]))
-      .finally(() => setLoading(false));
+      .catch(() => {
+        if (lastSearchRef.current === debouncedQuery) setResults([]);
+      })
+      .finally(() => {
+        if (lastSearchRef.current === debouncedQuery) setLoading(false);
+      });
   }, [debouncedQuery]);
 
   useEffect(() => {
@@ -37,20 +58,52 @@ export default function LocationSearch({ label, value, onChange, placeholder }) 
 
   useEffect(() => {
     if (value?.name && value.name !== query) {
-      setQuery(value.name);
+      setQuery(value.name.split(',')[0]);
     }
   }, [value?.name]);
 
-  function handleSelect(result) {
+  const handleSelect = useCallback((result) => {
     setQuery(result.name.split(',')[0]);
     setIsOpen(false);
+    setResults([]);
     onChange(result);
-  }
+  }, [onChange]);
 
   function handleInputChange(e) {
-    setQuery(e.target.value);
-    if (!e.target.value) {
+    const val = e.target.value;
+    setQuery(val);
+    if (!val) {
       onChange(null);
+      setResults([]);
+      setIsOpen(false);
+    }
+  }
+
+  function handleKeyDown(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (results.length > 0) {
+        // Select first result on Enter
+        handleSelect(results[0]);
+      } else if (query.length >= 2) {
+        // Force search and select first result
+        setLoading(true);
+        geocodeSearch(query)
+          .then(data => {
+            setResults(data);
+            if (data.length > 0) {
+              handleSelect(data[0]);
+            } else {
+              setIsOpen(false);
+            }
+          })
+          .catch(() => setResults([]))
+          .finally(() => setLoading(false));
+      }
+    } else if (e.key === 'Escape') {
+      setIsOpen(false);
+    } else if (e.key === 'ArrowDown' && results.length > 0) {
+      setIsOpen(true);
     }
   }
 
@@ -63,10 +116,15 @@ export default function LocationSearch({ label, value, onChange, placeholder }) 
           className="location-search__input"
           value={query}
           onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
           onFocus={() => results.length > 0 && setIsOpen(true)}
-          placeholder={placeholder || 'Wpisz nazwę miejscowości...'}
+          placeholder={placeholder || 'Wpisz adres lub nazwę miejscowości...'}
+          autoComplete="off"
         />
         {loading && <span className="location-search__spinner" />}
+        {value && !loading && (
+          <span className="location-search__selected-indicator" title="Lokalizacja wybrana" />
+        )}
       </div>
       {isOpen && results.length > 0 && (
         <ul className="location-search__dropdown">
@@ -74,7 +132,10 @@ export default function LocationSearch({ label, value, onChange, placeholder }) 
             <li
               key={`${r.osmId}-${i}`}
               className="location-search__item"
-              onClick={() => handleSelect(r)}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                handleSelect(r);
+              }}
             >
               <span className="location-search__item-name">
                 {r.name.split(',').slice(0, 2).join(',')}
