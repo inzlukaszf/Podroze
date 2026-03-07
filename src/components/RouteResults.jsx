@@ -1,4 +1,4 @@
-import { FaTrain, FaBus, FaSubway, FaClock, FaExchangeAlt, FaMoneyBillWave, FaWalking, FaTag, FaBolt, FaRoute, FaTram, FaTicketAlt } from 'react-icons/fa';
+import { FaTrain, FaBus, FaSubway, FaClock, FaExchangeAlt, FaMoneyBillWave, FaWalking, FaTag, FaBolt, FaRoute, FaTram, FaTicketAlt, FaHourglass, FaMapMarkerAlt } from 'react-icons/fa';
 import { useState } from 'react';
 
 function getModeIcon(mode) {
@@ -23,7 +23,7 @@ function getTypeIcon(type) {
 }
 
 function formatTime(dateStr) {
-  if (!dateStr) return '\u2014';
+  if (!dateStr) return '—';
   try {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr.slice(0, 5);
@@ -45,11 +45,21 @@ function formatDuration(duration) {
   return '';
 }
 
+function formatWait(minutes) {
+  if (!minutes && minutes !== 0) return null;
+  if (minutes < 1) return '< 1 min';
+  const h = Math.floor(minutes / 60);
+  const m = Math.round(minutes % 60);
+  if (h > 0) return `${h}h ${m}min oczekiwania`;
+  return `${m} min oczekiwania`;
+}
+
 function TagBadge({ tag }) {
   const config = {
     'najszybsza': { icon: <FaBolt />, className: 'tag--fastest' },
     'najtańsza': { icon: <FaMoneyBillWave />, className: 'tag--cheapest' },
     'najmniej przesiadek': { icon: <FaRoute />, className: 'tag--fewest' },
+    'min. oczekiwanie': { icon: <FaHourglass />, className: 'tag--minwait' },
   };
   const c = config[tag] || { icon: <FaTag />, className: '' };
   return (
@@ -59,45 +69,78 @@ function TagBadge({ tag }) {
   );
 }
 
-function LegDetail({ leg, isLocal }) {
+function TransferIndicator({ waitMinutes }) {
+  if (waitMinutes === null || waitMinutes === undefined) return null;
+  const isShort = waitMinutes < 10;
+  const isLong = waitMinutes > 60;
+  return (
+    <div className={`transfer-indicator ${isShort ? 'transfer-indicator--short' : ''} ${isLong ? 'transfer-indicator--long' : ''}`}>
+      <FaHourglass />
+      <span>{formatWait(waitMinutes)}</span>
+    </div>
+  );
+}
+
+function LegDetail({ leg, isLocal, waitAfterMinutes }) {
   const isWalk = leg.mode === 'pieszo' || leg.mode === 'walk';
 
   return (
-    <div className={`leg-detail ${isWalk ? 'leg-detail--walk' : ''}`}>
-      <div className="leg-detail__icon">
-        {getModeIcon(leg.mode || leg.trainType || 'autobus')}
-      </div>
-      <div className="leg-detail__content">
-        <div className="leg-detail__header">
-          {!isWalk && (
-            <span className="leg-detail__line">
-              {leg.mode === 'metro' && 'M'}{leg.line || leg.trainNumber || ''}
-            </span>
-          )}
-          {!isWalk && leg.mode && (
-            <span className="leg-detail__mode">{leg.mode}</span>
-          )}
-          {leg.lineDirection && (
-            <span className="leg-detail__direction">kier. {leg.lineDirection}</span>
-          )}
-          {isWalk && <span className="leg-detail__mode">pieszo</span>}
+    <>
+      <div className={`leg-detail ${isWalk ? 'leg-detail--walk' : ''}`}>
+        <div className="leg-detail__icon">
+          {getModeIcon(leg.mode || leg.trainType || 'autobus')}
         </div>
-        <div className="leg-detail__times">
-          <span>{formatTime(leg.departure)}</span>
-          <span className="leg-detail__stop">{leg.fromStop || leg.from}</span>
-          <span className="leg-detail__arrow">\u2192</span>
-          <span>{formatTime(leg.arrival)}</span>
-          <span className="leg-detail__stop">{leg.toStop || leg.to}</span>
+        <div className="leg-detail__content">
+          <div className="leg-detail__header">
+            {!isWalk && (
+              <span className="leg-detail__line">
+                {leg.mode === 'metro' && 'M'}{leg.line || leg.trainNumber || ''}
+              </span>
+            )}
+            {!isWalk && leg.mode && (
+              <span className="leg-detail__mode">{leg.mode}</span>
+            )}
+            {leg.lineDirection && (
+              <span className="leg-detail__direction">kier. {leg.lineDirection}</span>
+            )}
+            {isWalk && <span className="leg-detail__mode">pieszo</span>}
+          </div>
+          <div className="leg-detail__times">
+            <span>{formatTime(leg.departure)}</span>
+            <span className="leg-detail__stop">{leg.fromStop || leg.from}</span>
+            <span className="leg-detail__arrow">→</span>
+            <span>{formatTime(leg.arrival)}</span>
+            <span className="leg-detail__stop">{leg.toStop || leg.to}</span>
+          </div>
+          {leg.stopsCount > 0 && (
+            <span className="leg-detail__stops">{leg.stopsCount} przystanków</span>
+          )}
+          {leg.durationMinutes && (
+            <span className="leg-detail__duration">{leg.durationMinutes} min</span>
+          )}
         </div>
-        {leg.stopsCount > 0 && (
-          <span className="leg-detail__stops">{leg.stopsCount} przystanków</span>
-        )}
-        {leg.durationMinutes && (
-          <span className="leg-detail__duration">{leg.durationMinutes} min</span>
-        )}
       </div>
-    </div>
+      {waitAfterMinutes !== undefined && waitAfterMinutes !== null && !isWalk && (
+        <TransferIndicator waitMinutes={waitAfterMinutes} />
+      )}
+    </>
   );
+}
+
+function calculateLegWaits(legs) {
+  const waits = new Array(legs.length).fill(null);
+  for (let i = 0; i < legs.length - 1; i++) {
+    const curr = legs[i];
+    const next = legs[i + 1];
+    if (curr.mode === 'pieszo' || next.mode === 'pieszo') continue;
+    const arrival = curr.arrival ? new Date(curr.arrival) : null;
+    const departure = next.departure ? new Date(next.departure) : null;
+    if (arrival && departure && !isNaN(arrival.getTime()) && !isNaN(departure.getTime())) {
+      const wait = (departure - arrival) / 60000;
+      if (wait >= 0) waits[i] = wait;
+    }
+  }
+  return waits;
 }
 
 function TicketOptions({ ticketOptions, recommended }) {
@@ -133,6 +176,23 @@ function TicketOptions({ ticketOptions, recommended }) {
   );
 }
 
+function NearbyStationsList({ stations, label }) {
+  if (!stations || stations.length === 0) return null;
+  return (
+    <div className="nearby-stations">
+      <span className="nearby-stations__label"><FaMapMarkerAlt /> {label}:</span>
+      <div className="nearby-stations__list">
+        {stations.map((s, i) => (
+          <span key={i} className={`nearby-stations__item nearby-stations__item--${s.type}`}>
+            {s.type === 'train' ? '🚂' : '🚌'} {s.name}
+            <span className="nearby-stations__dist">{s.distKm} km</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ConnectionCard({ connection }) {
   const typeLabel = {
     train: 'Pociąg',
@@ -141,6 +201,10 @@ function ConnectionCard({ connection }) {
   };
 
   const isLocal = connection.type === 'local_transit';
+  const legs = connection.legs || [];
+  const legWaits = calculateLegWaits(legs);
+
+  const totalWait = connection._totalWaitMin;
 
   return (
     <div className={`connection-card connection-card--${connection.type}`}>
@@ -175,7 +239,7 @@ function ConnectionCard({ connection }) {
           <span className="connection-card__time-value">{formatTime(connection.departure)}</span>
           <span className="connection-card__station">{connection.from}</span>
         </div>
-        <div className="connection-card__arrow">\u2192</div>
+        <div className="connection-card__arrow">→</div>
         <div className="connection-card__arrival">
           <span className="connection-card__time-label">Przyjazd</span>
           <span className="connection-card__time-value">{formatTime(connection.arrival)}</span>
@@ -192,6 +256,11 @@ function ConnectionCard({ connection }) {
         {connection.transfers > 0 && (
           <span className="connection-card__detail">
             <FaExchangeAlt /> {connection.transfers} {connection.transfers === 1 ? 'przesiadka' : 'przesiadki'}
+          </span>
+        )}
+        {totalWait > 0 && (
+          <span className="connection-card__detail connection-card__wait">
+            <FaHourglass /> {formatWait(totalWait)}
           </span>
         )}
         {connection.price && (
@@ -224,17 +293,22 @@ function ConnectionCard({ connection }) {
         </div>
       )}
 
-      {/* Detailed legs with line numbers and vehicle types */}
-      {connection.legs && connection.legs.length > 0 && (
+      {/* Detailed legs with line numbers, vehicle types and wait times */}
+      {legs.length > 0 && (
         <div className="connection-card__legs">
           <details>
             <summary>
-              Szczegóły trasy ({connection.legs.filter(l => l.mode !== 'pieszo' && l.mode !== 'walk').length} odcinków
-              {isLocal && connection.linesSummary ? ` \u2014 ${connection.linesSummary}` : ''})
+              Szczegóły trasy ({legs.filter(l => l.mode !== 'pieszo' && l.mode !== 'walk').length} odcinków
+              {isLocal && connection.linesSummary ? ` — ${connection.linesSummary}` : ''})
             </summary>
             <div className="connection-card__legs-list">
-              {connection.legs.map((leg, i) => (
-                <LegDetail key={i} leg={leg} isLocal={isLocal} />
+              {legs.map((leg, i) => (
+                <LegDetail
+                  key={i}
+                  leg={leg}
+                  isLocal={isLocal}
+                  waitAfterMinutes={legWaits[i]}
+                />
               ))}
             </div>
           </details>
@@ -257,8 +331,8 @@ export default function RouteResults({ results, loading, error }) {
     return (
       <div className="route-results route-results--loading">
         <div className="spinner" />
-        <p>Szukam połączeń u wszystkich przewoźników...</p>
-        <p className="route-results__loading-sub">PKP, FlixBus, RegioJet, Sindbad, ZTM/MPK...</p>
+        <p>Szukam 5 najbliższych połączeń...</p>
+        <p className="route-results__loading-sub">PKP, FlixBus, RegioJet, Sindbad, ZTM/MPK — sprawdzam dworce i przesiadki...</p>
       </div>
     );
   }
@@ -273,19 +347,20 @@ export default function RouteResults({ results, loading, error }) {
 
   if (!results) return null;
 
-  const { connections, multiModal, from, to, fromCity, toCity, sameCity, sortedBy } = results;
+  const { connections, multiModal, from, to, fromCity, toCity, sameCity, sortedBy, fromNearbyStations, toNearbyStations } = results;
 
   const sortLabel = {
     departure: 'czasu odjazdu',
     fastest: 'najkrótszego czasu podróży',
     cheapest: 'najniższej ceny',
     fewest_transfers: 'najmniejszej liczby przesiadek',
+    min_wait: 'najmniejszego czasu oczekiwania',
   };
 
   return (
     <div className="route-results">
       <div className="route-results__header">
-        <h2>{from} \u2192 {to}</h2>
+        <h2>{from} → {to}</h2>
         {fromCity && <p className="route-results__city-info">Miasto startowe: {fromCity}</p>}
         {toCity && <p className="route-results__city-info">Miasto docelowe: {toCity}</p>}
         {sameCity && <p className="route-results__same-city">Oba punkty w tym samym mieście — szukam komunikacji miejskiej</p>}
@@ -295,10 +370,18 @@ export default function RouteResults({ results, loading, error }) {
         </p>
       </div>
 
+      {/* Nearby stations info */}
+      {fromNearbyStations && fromNearbyStations.length > 0 && (
+        <NearbyStationsList stations={fromNearbyStations} label="Dworce przy punkcie startowym" />
+      )}
+      {toNearbyStations && toNearbyStations.length > 0 && (
+        <NearbyStationsList stations={toNearbyStations} label="Dworce przy punkcie docelowym" />
+      )}
+
       {connections.length === 0 && (
         <div className="route-results__empty">
-          <p>Nie znaleziono bezpośrednich połączeń.</p>
-          <p>Spróbuj zmienić datę lub wyszukaj połączenia z przesiadkami.</p>
+          <p>Nie znaleziono połączeń po podanej godzinie.</p>
+          <p>Spróbuj zmienić datę, godzinę lub włącz opcję szukania z przesiadkami.</p>
         </div>
       )}
 
@@ -310,18 +393,36 @@ export default function RouteResults({ results, loading, error }) {
 
       {multiModal && multiModal.length > 0 && (
         <div className="route-results__multimodal">
-          <h3>Połączenia z przesiadką w dużym mieście</h3>
+          <h3>Połączenia z przesiadkami (bus ↔ pociąg ↔ komunikacja miejska)</h3>
           {multiModal.map((route, i) => (
             <div key={i} className="route-results__multimodal-route">
-              <h4>Przez: {route.via}</h4>
+              <h4>Przez: {route.viaCity || route.via}</h4>
               {route.totalPrice && (
                 <p className="route-results__multimodal-price">
                   <FaMoneyBillWave /> Łączny koszt: {route.totalPrice.amount.toFixed(2)} PLN
                 </p>
               )}
+              {route.totalDuration && (
+                <p className="route-results__multimodal-duration">
+                  <FaClock /> Łączny czas: {formatDuration(route.totalDuration)}
+                  {route.waitAtHub !== null && route.waitAtHub !== undefined && (
+                    <span className="route-results__wait-at-hub">
+                      {' '}(<FaHourglass /> {formatWait(route.waitAtHub)} na przesiadkę)
+                    </span>
+                  )}
+                </p>
+              )}
+              {route.hubStations && route.hubStations.length > 0 && (
+                <p className="route-results__hub-stations">
+                  Dworce w węźle: {route.hubStations.map(s => `${s.type === 'train' ? '🚂' : '🚌'} ${s.name}`).join(', ')}
+                </p>
+              )}
               <ConnectionCard connection={route.firstLeg} />
               <div className="route-results__transfer-indicator">
-                <FaExchangeAlt /> Przesiadka w {route.via}
+                <FaExchangeAlt /> Przesiadka w {route.viaCity || route.via}
+                {route.waitAtHub !== null && route.waitAtHub !== undefined && (
+                  <span className="route-results__wait"> — {formatWait(route.waitAtHub)}</span>
+                )}
               </div>
               <ConnectionCard connection={route.secondLeg} />
             </div>

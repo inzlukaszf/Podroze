@@ -27,11 +27,16 @@ export async function searchRoutes(from, to, options = {}) {
   if (options.toLon) params.set('toLon', options.toLon);
   if (options.multiModal) params.set('multiModal', 'true');
   if (options.sortBy) params.set('sortBy', options.sortBy);
+  params.set('count', String(options.count || 5));
   return fetchJson(`${API_BASE}/transit/search?${params}`);
 }
 
 export async function searchStations(query) {
   return fetchJson(`${API_BASE}/transit/stations?q=${encodeURIComponent(query)}`);
+}
+
+export async function getNearbyStations(lat, lon, radiusKm = 3) {
+  return fetchJson(`${API_BASE}/transit/stations/nearest?lat=${lat}&lon=${lon}&radius=${radiusKm}`);
 }
 
 export async function getSupportedCities() {
